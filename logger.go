@@ -69,6 +69,19 @@ var (
 	stdWirtor *zapcore.WriteSyncer
 )
 
+func init() {
+	// 初始化一个默认只输出标准输出的日志对象
+	InitLogger(&Options{
+		NotStdout:  false,
+		Level:      DebugLevel,
+		Filename:   "",
+		MaxSize:    0,
+		MaxBackups: 0,
+		MaxAge:     0,
+		Compress:   false,
+	})
+}
+
 func InitLogger(opt *Options, hooks ...func(LogInfo) error) {
 	var treeCore zapcore.Core
 	fileWirtor = getLogWriter(opt)

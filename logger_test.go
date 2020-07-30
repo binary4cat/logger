@@ -35,3 +35,7 @@ func TestInitLogger(t *testing.T) {
 		})
 	}
 }
+
+func TestLog(t *testing.T) {
+	logger.Debug("111111")
+}
