@@ -1,6 +1,6 @@
 # 介绍
 
-此日志组件是对[zap](https://github.com/uber-go/zap)组件的简单封装，增加了日志写入到文件，日志文件按照大小循环等可配置项，简化使用。
+此日志组件是对 [zap](https://github.com/uber-go/zap) 组件的简单封装，增加了日志写入到文件，日志文件按照大小循环等可配置项，简化使用。
 
 # 使用方式
 
@@ -9,7 +9,7 @@ package main
 
 import (
  "fmt"
- "github.com/hjdo/logger"
+ "github.com/binary4cat/logger"
  "time"
 )
 
@@ -46,7 +46,7 @@ func logInfoHook(info logger.LogInfo) error {
 
 例如将gorm的日志打印进我们的`logger`日志系统中，因为gorm的日志会带有时间和调用代码的位置信息，如果调用`logger`其他打印日志方法可能会因为追加信息太多而造成混乱，所以这种情况就可以调用`Pure`或者`Puref`方法去打印原始的日志内容：
 
-```
+```golang
 func InitDb() {
  if db, err := gorm.Open(config.DatabaseConf.DbName, config.DatabaseConf.DbSource); err != nil {
   logger.Errorf("初始化数据库发生错误：%v", err)

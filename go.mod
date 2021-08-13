@@ -1,4 +1,4 @@
-module github.com/hjdo/logger
+module github.com/binary4cat/logger
 
 go 1.14
 
