@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/natefinch/lumberjack/v3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // A Level is a logging priority. Higher levels are more important.
@@ -42,14 +42,14 @@ const (
 type Options struct {
 	NotStdout  bool // 不写标准输出吗？默认输出到标准输出，不管有无写文件
 	Level      Level
-	Filename   string // 文件为空时，只输出到标准输出
-	MaxSize    int    // megabytes
-	MaxBackups int    // MaxBackups is the maximum number of old log files to retain
-	MaxAge     int    // MaxAge is the maximum number of days to retain old log files based on the timestamp encoded in their filename
+	Filename   string        // 文件为空时，只输出到标准输出
+	MaxSize    int64         // megabytes
+	MaxBackups int           // MaxBackups is the maximum number of old log files to retain
+	MaxAge     time.Duration // MaxAge is the maximum number of days to retain old log files based on the timestamp encoded in their filename
 	Compress   bool
 }
 
-// 正在写入的日志信息
+// LogInfo 正在写入的日志信息
 type LogInfo struct {
 	Level      Level     // 日志级别
 	Time       time.Time // 写日志的时间
@@ -73,7 +73,7 @@ func init() {
 	// 初始化一个默认只输出标准输出的日志对象
 	InitLogger(&Options{
 		NotStdout:  false,
-		Level:      DebugLevel,
+		Level:      _minLevel,
 		Filename:   "",
 		MaxSize:    0,
 		MaxBackups: 0,
@@ -106,15 +106,15 @@ func InitLogger(opt *Options, hooks ...func(LogInfo) error) {
 	logger = zl.Sugar()
 }
 
-// 返回一个日志writer，可自定义处理
-func GetLogWirter() (io.Writer, error) {
+// GetLogWriter 返回一个日志writer，可自定义处理
+func GetLogWriter() (io.Writer, error) {
 	if logger == nil {
 		return nil, errors.New("请初始化日志组件后调用")
 	}
 	return *fileWirtor, nil
 }
 
-// 对日志的其他处理，例如异步推送到Kafka或者ES数据库
+// hooksHandler 对日志的其他处理，例如异步推送到Kafka或者ES数据库
 func hooksHandler(hooks ...func(LogInfo) error) []func(zapcore.Entry) error {
 	var resHooks []func(zapcore.Entry) error
 	for _, hook := range hooks {
@@ -134,7 +134,7 @@ func hooksHandler(hooks ...func(LogInfo) error) []func(zapcore.Entry) error {
 	return resHooks
 }
 
-// 获取除文件名外的默认配置：日志文件最大100M，备份最多10个，最多保存30天的数据，不压缩
+// GetDefault 获取除文件名外的默认配置：日志文件最大100M，备份最多10个，最多保存30天的数据，不压缩
 func GetDefault(filename string) *Options {
 	return &Options{
 		Filename:   filename,
@@ -153,14 +153,17 @@ func getEncoder() zapcore.Encoder {
 }
 
 func getLogWriter(opt *Options) *zapcore.WriteSyncer {
-	lumberJackLogger := &lumberjack.Logger{
-		Filename:   opt.Filename,
-		MaxSize:    opt.MaxSize,
-		MaxBackups: opt.MaxBackups,
+	roller, err := lumberjack.NewRoller(opt.Filename, opt.MaxSize, &lumberjack.Options{
 		MaxAge:     opt.MaxAge,
+		MaxBackups: opt.MaxBackups,
+		LocalTime:  true,
 		Compress:   opt.Compress,
+	})
+	if err != nil {
+		fmt.Printf("Crate log file roller failed, err:%v\n", err)
 	}
-	ws := zapcore.AddSync(lumberJackLogger)
+
+	ws := zapcore.AddSync(roller)
 	return &ws
 }
 
@@ -240,7 +243,8 @@ func Fatalf(template string, args ...interface{}) {
 // pairs are treated as they are in With.
 //
 // When debug-level logging is disabled, this is much faster than
-//  s.With(keysAndValues).Debug(msg)
+//
+//	s.With(keysAndValues).Debug(msg)
 func Debugw(msg string, keysAndValues ...interface{}) {
 	logger.Debugw(msg, keysAndValues...)
 }
@@ -282,7 +286,7 @@ func Fatalw(msg string, keysAndValues ...interface{}) {
 	logger.Fatalw(msg, keysAndValues...)
 }
 
-// Output pure content without any additional information
+// Pure Output pure content without any additional information
 func Pure(args ...interface{}) {
 	if fileWirtor != nil {
 		fw := *fileWirtor
@@ -294,7 +298,7 @@ func Pure(args ...interface{}) {
 	}
 }
 
-// Output purely formatted content without any additional information
+// Puref Output purely formatted content without any additional information
 func Puref(msg string, args ...interface{}) {
 	if fileWirtor != nil {
 		fw := *fileWirtor
